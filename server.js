@@ -11,7 +11,12 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.OPENROUTER_API_KEY;
-const MODEL = 'openai/gpt-oss-120b:free';
+// Bir neçə ehtiyat model - biri pulsuz siyahıdan çıxarsa, növbəti avtomatik sınanır
+const MODELS = [
+  'openai/gpt-oss-20b:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'openrouter/free'
+];
 
 if (!API_KEY) {
   console.error('XƏTA: .env faylında OPENROUTER_API_KEY tapılmadı!');
@@ -22,8 +27,6 @@ if (!API_KEY) {
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Sistemin dürüst, qərəzsiz təlimatı (server-side saxlanır ki, kimsə
-// brauzerin developer console-undan görüb dəyişə bilməsin)
 const SYSTEM_PROMPT = `Sən Heze AI-sən — dərin, dəqiq və faydalı cavablar verən ağıllı bir köməkçisən.
 
 Qaydalar:
@@ -56,25 +59,38 @@ app.post('/api/chat', async (req, res) => {
       ...cleanMessages
     ];
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${API_KEY}`
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 8192,
-        messages: openrouterMessages
-      })
-    });
+    // Modelləri sırayla sına - biri "unavailable" desə, növbətini cəhd et
+    let data, response;
+    let lastError = null;
 
-    const data = await response.json();
+    for (const model of MODELS) {
+      response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${API_KEY}`
+        },
+        body: JSON.stringify({
+          model: model,
+          max_tokens: 8192,
+          messages: openrouterMessages
+        })
+      });
+
+      data = await response.json();
+
+      if (response.ok) {
+        break;
+      }
+
+      lastError = data;
+      console.error(`Model ${model} uğursuz oldu, növbəti sınanır:`, data?.error?.message);
+    }
 
     if (!response.ok) {
-      console.error('OpenRouter API xətası:', data);
+      console.error('Bütün modellər uğursuz oldu:', lastError);
       return res.status(response.status).json({
-        error: data?.error?.message || 'API sorğusu uğursuz oldu.'
+        error: lastError?.error?.message || 'API sorğusu uğursuz oldu.'
       });
     }
 
