@@ -11,7 +11,7 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.OPENROUTER_API_KEY;
-const MODEL = 'openrouter/free';
+const MODEL = 'openai/gpt-oss-20b:free';
 if (!API_KEY) {
   console.error('XƏTA: .env faylında OPENROUTER_API_KEY tapılmadı!');
   console.error('Zəhmət olmasa .env.example-i .env kimi kopyalayıb açarınızı yazın.');
