@@ -25,6 +25,19 @@ if (!API_KEY) {
 }
 
 app.use(express.json());
+
+// CORS - yerli fayldan (file://) və ya APK-dan açılan versiyanın da
+// serverə sorğu göndərə bilməsi üçün icazə veririk
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 const SYSTEM_PROMPT = `Sən Heze AI-sən — dərin, dəqiq və faydalı cavablar verən ağıllı bir köməkçisən.
